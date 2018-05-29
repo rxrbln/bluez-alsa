@@ -1,6 +1,6 @@
 /*
  * test-utils.c
- * Copyright (c) 2016-2017 Arkadiusz Bokowy
+ * Copyright (c) 2016-2018 Arkadiusz Bokowy
  *
  * This file is a part of bluez-alsa.
  *
@@ -134,9 +134,9 @@ int test_difftimespec(void) {
 
 int test_fifo_buffer(void) {
 
-	struct ffb ffb = { 0 };
+	ffb_uint8_t ffb = { 0 };
 
-	assert(ffb_init(&ffb, 64) == 0);
+	assert(ffb_uint8_init(&ffb, 64) == 0);
 	assert(ffb.data == ffb.tail);
 	assert(ffb.size == 64);
 
