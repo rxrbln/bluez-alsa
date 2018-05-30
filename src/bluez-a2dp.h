@@ -1,6 +1,6 @@
 /*
  * BlueALSA - bluez-a2dp.h
- * Copyright (c) 2016-2017 Arkadiusz Bokowy
+ * Copyright (c) 2016-2018 Arkadiusz Bokowy
  *
  * This file is a part of bluez-alsa.
  *
@@ -26,6 +26,9 @@ const a2dp_aac_t bluez_a2dp_aac;
 #endif
 #if ENABLE_APTX
 const a2dp_aptx_t bluez_a2dp_aptx;
+#endif
+#if ENABLE_LDAC
+const a2dp_ldac_t bluez_a2dp_ldac;
 #endif
 
 #endif

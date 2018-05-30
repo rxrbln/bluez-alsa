@@ -1,6 +1,6 @@
 /*
  * BlueALSA - bluez-a2dp.c
- * Copyright (c) 2016-2017 Arkadiusz Bokowy
+ * Copyright (c) 2016-2018 Arkadiusz Bokowy
  *
  * This file is a part of bluez-alsa.
  *
@@ -119,5 +119,23 @@ const a2dp_aptx_t bluez_a2dp_aptx = {
 		APTX_SAMPLING_FREQ_32000 |
 		APTX_SAMPLING_FREQ_44100 |
 		APTX_SAMPLING_FREQ_48000,
+};
+#endif
+
+#if ENABLE_LDAC
+const a2dp_ldac_t bluez_a2dp_ldac = {
+	.info.vendor_id = LDAC_VENDOR_ID,
+	.info.codec_id = LDAC_CODEC_ID,
+	.channel_mode =
+		LDAC_CHANNEL_MODE_MONO |
+		LDAC_CHANNEL_MODE_DUAL_CHANNEL |
+		LDAC_CHANNEL_MODE_STEREO,
+	.frequency =
+		/* NOTE: Used LDAC library does not support
+		 *       frequencies higher than 96 kHz. */
+		LDAC_SAMPLING_FREQ_44100 |
+		LDAC_SAMPLING_FREQ_48000 |
+		LDAC_SAMPLING_FREQ_88200 |
+		LDAC_SAMPLING_FREQ_96000,
 };
 #endif

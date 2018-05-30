@@ -1,6 +1,6 @@
 /*
  * BlueALSA - io.h
- * Copyright (c) 2016-2017 Arkadiusz Bokowy
+ * Copyright (c) 2016-2018 Arkadiusz Bokowy
  *
  * This file is a part of bluez-alsa.
  *
@@ -26,6 +26,9 @@ void *io_thread_a2dp_source_aac(void *arg);
 #endif
 #if ENABLE_APTX
 void *io_thread_a2dp_source_aptx(void *arg);
+#endif
+#if ENABLE_LDAC
+void *io_thread_a2dp_source_ldac(void *arg);
 #endif
 
 void *io_thread_sco(void *arg);

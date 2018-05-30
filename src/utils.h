@@ -1,6 +1,6 @@
 /*
  * BlueALSA - utils.h
- * Copyright (c) 2016 Arkadiusz Bokowy
+ * Copyright (c) 2016-2018 Arkadiusz Bokowy
  *
  * This file is a part of bluez-alsa.
  *
@@ -51,6 +51,10 @@ void snd_pcm_scale_s16le(int16_t *buffer, size_t size, int channels,
 #include <fdk-aac/aacenc_lib.h>
 const char *aacdec_strerror(AAC_DECODER_ERROR err);
 const char *aacenc_strerror(AACENC_ERROR err);
+#endif
+
+#if ENABLE_LDAC
+const char *ldacBT_strerror(int err);
 #endif
 
 #endif

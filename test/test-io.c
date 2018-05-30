@@ -22,14 +22,21 @@
 #include "../src/shared/ffb.c"
 #include "../src/shared/rt.c"
 
-static const a2dp_sbc_t config_sbc_44100_joint_stereo = {
+static const a2dp_sbc_t config_sbc_44100_stereo = {
 	.frequency = SBC_SAMPLING_FREQ_44100,
-	.channel_mode = SBC_CHANNEL_MODE_JOINT_STEREO,
+	.channel_mode = SBC_CHANNEL_MODE_STEREO,
 	.block_length = SBC_BLOCK_LENGTH_16,
 	.subbands = SBC_SUBBANDS_8,
 	.allocation_method = SBC_ALLOCATION_LOUDNESS,
 	.min_bitpool = MIN_BITPOOL,
 	.max_bitpool = MAX_BITPOOL,
+};
+
+static const a2dp_ldac_t config_ldac_44100_stereo = {
+	.info.vendor_id = LDAC_VENDOR_ID,
+	.info.codec_id = LDAC_CODEC_ID,
+	.frequency = LDAC_SAMPLING_FREQ_44100,
+	.channel_mode = LDAC_CHANNEL_MODE_STEREO,
 };
 
 /**
@@ -85,7 +92,7 @@ int test_a2dp_sbc_invalid_setup(void) {
 	assert(test_error_count == 3);
 	assert(strcmp(test_error_msg, "Couldn't initialize SBC codec: Invalid argument") == 0);
 
-	transport.a2dp.cconfig = (uint8_t *)&config_sbc_44100_joint_stereo;
+	transport.a2dp.cconfig = (uint8_t *)&config_sbc_44100_stereo;
 	*test_error_msg = '\0';
 
 	pthread_create(&thread, NULL, io_thread_a2dp_sink_sbc, &transport);
@@ -109,8 +116,8 @@ int test_a2dp_sbc_decoding(void) {
 		.profile = BLUETOOTH_PROFILE_A2DP_SOURCE,
 		.codec = A2DP_CODEC_SBC,
 		.a2dp = {
-			.cconfig = (uint8_t *)&config_sbc_44100_joint_stereo,
-			.cconfig_size = sizeof(a2dp_sbc_t),
+			.cconfig = (uint8_t *)&config_sbc_44100_stereo,
+			.cconfig_size = sizeof(config_sbc_44100_stereo),
 			.pcm = { .fd = pcm_fds[0] },
 		},
 		.state = TRANSPORT_ACTIVE,
@@ -124,7 +131,8 @@ int test_a2dp_sbc_decoding(void) {
 	pthread_create(&thread, NULL, io_thread_a2dp_sink_sbc, &transport);
 
 	snd_pcm_sine_s16le(buffer, sizeof(buffer) / sizeof(int16_t), 2, 0, 0.01);
-	assert(a2dp_write_sbc(bt_fds[0], &config_sbc_44100_joint_stereo, buffer, sizeof(buffer)) == 0);
+	assert(a2dp_write_sbc(bt_fds[0], &config_sbc_44100_stereo, buffer, sizeof(buffer)) == 0);
+	/* sleep(1); */
 
 	assert(pthread_cancel(thread) == 0);
 	assert(pthread_timedjoin(thread, NULL, 1e6) == 0);
@@ -147,8 +155,8 @@ int test_a2dp_sbc_encoding(void) {
 		.profile = BLUETOOTH_PROFILE_A2DP_SOURCE,
 		.codec = A2DP_CODEC_SBC,
 		.a2dp = {
-			.cconfig = (uint8_t *)&config_sbc_44100_joint_stereo,
-			.cconfig_size = sizeof(a2dp_sbc_t),
+			.cconfig = (uint8_t *)&config_sbc_44100_stereo,
+			.cconfig_size = sizeof(config_sbc_44100_stereo),
 			.pcm = { .fd = pcm_fds[1] },
 		},
 		.state = TRANSPORT_ACTIVE,
@@ -162,6 +170,7 @@ int test_a2dp_sbc_encoding(void) {
 
 	snd_pcm_sine_s16le(buffer, sizeof(buffer) / sizeof(int16_t), 2, 0, 0.01);
 	assert(write(pcm_fds[0], buffer, sizeof(buffer)) == sizeof(buffer));
+	sleep(1);
 
 	assert(pthread_cancel(thread) == 0);
 	assert(pthread_timedjoin(thread, NULL, 1e6) == 0);
@@ -172,9 +181,53 @@ int test_a2dp_sbc_encoding(void) {
 	return 0;
 }
 
+#if ENABLE_LDAC
+int test_a2dp_ldac_encoding(void) {
+
+	int bt_fds[2];
+	int pcm_fds[2];
+
+	assert(socketpair(AF_UNIX, SOCK_STREAM, 0, bt_fds) == 0);
+	assert(socketpair(AF_UNIX, SOCK_STREAM, 0, pcm_fds) == 0);
+
+	struct ba_transport transport = {
+		.profile = BLUETOOTH_PROFILE_A2DP_SOURCE,
+		.codec = A2DP_CODEC_VENDOR_LDAC,
+		.a2dp = {
+			.cconfig = (uint8_t *)&config_ldac_44100_stereo,
+			.cconfig_size = sizeof(config_ldac_44100_stereo),
+			.pcm = { .fd = pcm_fds[1] },
+		},
+		.state = TRANSPORT_ACTIVE,
+		.bt_fd = bt_fds[0],
+		.mtu_write = 679,
+	};
+
+	pthread_t thread;
+	int16_t buffer[1024 * 2 * 5];
+
+	pthread_create(&thread, NULL, io_thread_a2dp_source_aptx, &transport);
+
+	snd_pcm_sine_s16le(buffer, sizeof(buffer) / sizeof(int16_t), 2, 0, 0.01);
+	assert(write(pcm_fds[0], buffer, sizeof(buffer)) == sizeof(buffer));
+	sleep(1);
+
+	assert(pthread_cancel(thread) == 0);
+	assert(pthread_timedjoin(thread, NULL, 1e6) == 0);
+	assert(test_warn_count == 0 && test_error_count == 0);
+
+	close(pcm_fds[0]);
+	close(bt_fds[1]);
+	return 0;
+}
+#endif
+
 int main(void) {
 	test_run(test_a2dp_sbc_invalid_setup);
 	test_run(test_a2dp_sbc_decoding);
 	test_run(test_a2dp_sbc_encoding);
+#if ENABLE_LDAC
+	test_run(test_a2dp_ldac_encoding);
+#endif
 	return 0;
 }

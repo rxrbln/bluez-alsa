@@ -155,6 +155,17 @@
 #define LDAC_VENDOR_ID			0x0000012d
 #define LDAC_CODEC_ID			0x00aa
 
+#define LDAC_CHANNEL_MODE_MONO		0x04
+#define LDAC_CHANNEL_MODE_DUAL_CHANNEL	0x02
+#define LDAC_CHANNEL_MODE_STEREO	0x01
+
+#define LDAC_SAMPLING_FREQ_44100	0x20
+#define LDAC_SAMPLING_FREQ_48000	0x10
+#define LDAC_SAMPLING_FREQ_88200	0x08
+#define LDAC_SAMPLING_FREQ_96000	0x04
+#define LDAC_SAMPLING_FREQ_176400	0x02
+#define LDAC_SAMPLING_FREQ_192000	0x01
+
 typedef struct {
 	uint32_t vendor_id;
 	uint16_t codec_id;
@@ -202,7 +213,10 @@ typedef struct {
 
 typedef struct {
 	a2dp_vendor_codec_t info;
-	uint8_t unknown[2];
+	uint8_t frequency:6;
+	uint8_t rfa1:2;
+	uint8_t channel_mode:3;
+	uint8_t rfa2:5;
 } __attribute__ ((packed)) a2dp_ldac_t;
 
 #elif __BYTE_ORDER == __BIG_ENDIAN
@@ -247,7 +261,10 @@ typedef struct {
 
 typedef struct {
 	a2dp_vendor_codec_t info;
-	uint8_t unknown[2];
+	uint8_t rfa1:2;
+	uint8_t frequency:6;
+	uint8_t rfa2:5;
+	uint8_t channel_mode:3;
 } __attribute__ ((packed)) a2dp_ldac_t;
 
 #else
