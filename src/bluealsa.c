@@ -12,6 +12,10 @@
 
 #include <grp.h>
 
+#if ENABLE_LDAC
+# include <ldacBT.h>
+#endif
+
 #include "hfp.h"
 #include "transport.h"
 
@@ -57,6 +61,11 @@ struct ba_config config = {
 	 * exceed our writing MTU. It is important not to do so, because the code
 	 * responsible for fragmentation seems not to work as expected. */
 	.aac_vbr_mode = 3,
+#endif
+
+#if ENABLE_LDAC
+	/* Use standard encoder quality as a reasonable default. */
+	.ldac_eqmid = LDACBT_EQMID_SQ,
 #endif
 
 	.a2dp_force_mono = false,

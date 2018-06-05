@@ -1157,7 +1157,7 @@ void *io_thread_a2dp_source_ldac(void *arg) {
 
 	pthread_cleanup_push(CANCEL_ROUTINE(ldacBT_free_handle), handle);
 
-	if (ldacBT_init_handle_encode(handle, t->mtu_write, LDACBT_EQMID_MQ,
+	if (ldacBT_init_handle_encode(handle, t->mtu_write, config.ldac_eqmid,
 				cconfig->channel_mode, LDACBT_SMPL_FMT_S16, transport_get_sampling(t)) == -1) {
 		error("Couldn't initialize LDAC encoder: %s", ldacBT_strerror(ldacBT_get_error_code(handle)));
 		goto fail_init;

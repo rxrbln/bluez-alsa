@@ -96,6 +96,10 @@ struct ba_config {
 	uint8_t aac_vbr_mode;
 #endif
 
+#if ENABLE_LDAC
+	uint8_t ldac_eqmid;
+#endif
+
 	/* Support for monophonic sound in the A2DP profile is mandatory for
 	 * sink and semi-mandatory for source. So, if one wants only the bare
 	 * minimum, it would be possible - e.g. due to bandwidth limitations. */
