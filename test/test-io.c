@@ -32,6 +32,21 @@ static const a2dp_sbc_t config_sbc_44100_stereo = {
 	.max_bitpool = MAX_BITPOOL,
 };
 
+static const a2dp_aac_t config_aac_44100_stereo = {
+	.object_type = AAC_OBJECT_TYPE_MPEG4_AAC_LC,
+	AAC_INIT_FREQUENCY(AAC_SAMPLING_FREQ_44100)
+	.channels = AAC_CHANNELS_2,
+	.vbr = 1,
+	AAC_INIT_BITRATE(0xFFFF)
+};
+
+static const a2dp_aptx_t config_aptx_44100_stereo = {
+	.info.vendor_id = APTX_VENDOR_ID,
+	.info.codec_id = APTX_CODEC_ID,
+	.frequency = APTX_SAMPLING_FREQ_44100,
+	.channel_mode = APTX_CHANNEL_MODE_STEREO,
+};
+
 static const a2dp_ldac_t config_ldac_44100_stereo = {
 	.info.vendor_id = LDAC_VENDOR_ID,
 	.info.codec_id = LDAC_CODEC_ID,
@@ -55,6 +70,35 @@ static int pthread_timedjoin(pthread_t thread, void **retval, useconds_t usec) {
 	ts.tv_nsec = ts.tv_nsec % (long)1e9;
 
 	return pthread_timedjoin_np(thread, retval, &ts);
+}
+
+static int test_a2dp_encoding(struct ba_transport *t, void *(*cb)(void *)) {
+
+	int bt_fds[2];
+	int pcm_fds[2];
+
+	assert(socketpair(AF_UNIX, SOCK_STREAM, 0, bt_fds) == 0);
+	assert(socketpair(AF_UNIX, SOCK_STREAM, 0, pcm_fds) == 0);
+
+	t->state = TRANSPORT_ACTIVE;
+	t->bt_fd = bt_fds[0];
+	t->a2dp.pcm.fd = pcm_fds[1];
+
+	pthread_t thread;
+	int16_t buffer[1024 * 10];
+
+	pthread_create(&thread, NULL, cb, t);
+
+	snd_pcm_sine_s16le(buffer, sizeof(buffer) / sizeof(int16_t), 2, 0, 0.01);
+	assert(write(pcm_fds[0], buffer, sizeof(buffer)) == sizeof(buffer));
+	sleep(1);
+
+	assert(pthread_cancel(thread) == 0);
+	assert(pthread_timedjoin(thread, NULL, 1e6) == 0);
+
+	close(pcm_fds[0]);
+	close(bt_fds[1]);
+	return 0;
 }
 
 int test_a2dp_sbc_invalid_setup(void) {
@@ -145,50 +189,64 @@ int test_a2dp_sbc_decoding(void) {
 
 int test_a2dp_sbc_encoding(void) {
 
-	int bt_fds[2];
-	int pcm_fds[2];
-
-	assert(socketpair(AF_UNIX, SOCK_STREAM, 0, bt_fds) == 0);
-	assert(socketpair(AF_UNIX, SOCK_STREAM, 0, pcm_fds) == 0);
-
 	struct ba_transport transport = {
 		.profile = BLUETOOTH_PROFILE_A2DP_SOURCE,
 		.codec = A2DP_CODEC_SBC,
 		.a2dp = {
 			.cconfig = (uint8_t *)&config_sbc_44100_stereo,
 			.cconfig_size = sizeof(config_sbc_44100_stereo),
-			.pcm = { .fd = pcm_fds[1] },
 		},
-		.state = TRANSPORT_ACTIVE,
-		.bt_fd = bt_fds[0],
 	};
 
-	pthread_t thread;
-	int16_t buffer[1024 * 2];
+	transport.mtu_write = 153 * 3,
+	assert(test_a2dp_encoding(&transport, io_thread_a2dp_source_sbc) == 0);
+	assert(test_warn_count == 0 && test_error_count == 0);
 
-	pthread_create(&thread, NULL, io_thread_a2dp_source_sbc, &transport);
-
-	snd_pcm_sine_s16le(buffer, sizeof(buffer) / sizeof(int16_t), 2, 0, 0.01);
-	assert(write(pcm_fds[0], buffer, sizeof(buffer)) == sizeof(buffer));
-	sleep(1);
-
-	assert(pthread_cancel(thread) == 0);
-	assert(pthread_timedjoin(thread, NULL, 1e6) == 0);
-	assert(test_warn_count == 1 && test_error_count == 0);
-
-	close(pcm_fds[0]);
-	close(bt_fds[1]);
 	return 0;
 }
 
+#if ENABLE_AAC
+int test_a2dp_aac_encoding(void) {
+
+	struct ba_transport transport = {
+		.profile = BLUETOOTH_PROFILE_A2DP_SOURCE,
+		.codec = A2DP_CODEC_MPEG24,
+		.a2dp = {
+			.cconfig = (uint8_t *)&config_aac_44100_stereo,
+			.cconfig_size = sizeof(config_aac_44100_stereo),
+		},
+	};
+
+	transport.mtu_write = 64,
+	assert(test_a2dp_encoding(&transport, io_thread_a2dp_source_aac) == 0);
+	assert(test_warn_count == 0 && test_error_count == 0);
+
+	return 0;
+}
+#endif
+
+#if ENABLE_APTX
+int test_a2dp_aptx_encoding(void) {
+
+	struct ba_transport transport = {
+		.profile = BLUETOOTH_PROFILE_A2DP_SOURCE,
+		.codec = A2DP_CODEC_VENDOR_APTX,
+		.a2dp = {
+			.cconfig = (uint8_t *)&config_aptx_44100_stereo,
+			.cconfig_size = sizeof(config_aptx_44100_stereo),
+		},
+	};
+
+	transport.mtu_write = 400,
+	assert(test_a2dp_encoding(&transport, io_thread_a2dp_source_aptx) == 0);
+	assert(test_warn_count == 0 && test_error_count == 0);
+
+	return 0;
+}
+#endif
+
 #if ENABLE_LDAC
 int test_a2dp_ldac_encoding(void) {
-
-	int bt_fds[2];
-	int pcm_fds[2];
-
-	assert(socketpair(AF_UNIX, SOCK_STREAM, 0, bt_fds) == 0);
-	assert(socketpair(AF_UNIX, SOCK_STREAM, 0, pcm_fds) == 0);
 
 	struct ba_transport transport = {
 		.profile = BLUETOOTH_PROFILE_A2DP_SOURCE,
@@ -196,28 +254,13 @@ int test_a2dp_ldac_encoding(void) {
 		.a2dp = {
 			.cconfig = (uint8_t *)&config_ldac_44100_stereo,
 			.cconfig_size = sizeof(config_ldac_44100_stereo),
-			.pcm = { .fd = pcm_fds[1] },
 		},
-		.state = TRANSPORT_ACTIVE,
-		.bt_fd = bt_fds[0],
-		.mtu_write = 679,
 	};
 
-	pthread_t thread;
-	int16_t buffer[1024 * 2 * 5];
-
-	pthread_create(&thread, NULL, io_thread_a2dp_source_aptx, &transport);
-
-	snd_pcm_sine_s16le(buffer, sizeof(buffer) / sizeof(int16_t), 2, 0, 0.01);
-	assert(write(pcm_fds[0], buffer, sizeof(buffer)) == sizeof(buffer));
-	sleep(1);
-
-	assert(pthread_cancel(thread) == 0);
-	assert(pthread_timedjoin(thread, NULL, 1e6) == 0);
+	transport.mtu_write = 679,
+	assert(test_a2dp_encoding(&transport, io_thread_a2dp_source_ldac) == 0);
 	assert(test_warn_count == 0 && test_error_count == 0);
 
-	close(pcm_fds[0]);
-	close(bt_fds[1]);
 	return 0;
 }
 #endif
@@ -226,6 +269,12 @@ int main(void) {
 	test_run(test_a2dp_sbc_invalid_setup);
 	test_run(test_a2dp_sbc_decoding);
 	test_run(test_a2dp_sbc_encoding);
+#if ENABLE_AAC
+	test_run(test_a2dp_aac_encoding);
+#endif
+#if ENABLE_APTX
+	test_run(test_a2dp_aptx_encoding);
+#endif
 #if ENABLE_LDAC
 	test_run(test_a2dp_ldac_encoding);
 #endif
